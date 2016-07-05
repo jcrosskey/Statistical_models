@@ -1,0 +1,56 @@
+---
+title: "Weighted Least Squares in Linear Regression"
+author: "JJ Crosskey"
+date: "July 1, 2016"
+output: 
+  html_document: 
+    keep_md: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### An example
+
+This is an example illustrating how to determine weights used in weighted least squares in linear regression when the errors do not display constant variance. Details about this example can be found [here](https://onlinecourses.science.psu.edu/stat501/node/397).
+
+#### Load data into R
+The data was collected from a study of computer-assisted learning by n = 12 students.
+
+```{r Load data}
+library(readr)
+library(ggplot2)
+# "file -I file_name" found the file encoding
+cs <- read.delim("ca_learning_new.txt",fileEncoding = "utf-16le", header=TRUE)
+head(cs)
+ggplot(data=cs, mapping=aes(y=cost, x=num_responses)) + geom_point()
+```
+
+The plot of cost vs. number of responses shows that there is a linear relationship between the two measured variables.
+
+#### Linear regression with OLS (ordinary least squares)
+``` {r OLS}
+cs.lm <- lm(cost~num_responses,data=cs)
+summary(cs.lm)
+cs.res <- resid(cs.lm) # residuals
+ggplot(mapping=aes(x=cs$num_responses, y=cs.res)) + geom_point() + geom_hline(yintercept = 0)+ ggtitle("Residuals against predictors - OLS") + xlab("num_responses") + ylab("residuals")
+```
+
+The plot of the residuals versus the predictor values indicates possible nonconstant variance since there is a very slight "megaphone" pattern.
+
+Weighted least squares will be used to address this possiblity. The weights will be based on regressing the absolute residuals versus the predictor. The weights are defined as 1 over the squared fitted values.
+
+```{r regress absolute residuals versus the predictor}
+res.lm <- lm(abs(cs.res)~cs$num_responses)
+summary(res.lm)
+fitted_vals <- predict.lm(res.lm, data.frame(num_responses=cs$num_responses))
+weights <- 1/(fitted_vals)^2
+```
+
+```{r weighted least squares}
+cs.wls <- lm(cost~num_responses,data=cs,weights = weights)
+ggplot(mapping=aes(x=cs$num_responses, y=rstudent(cs.wls))) + geom_point() + geom_hline(yintercept = 0)+ ggtitle("Studentized Residuals vs predictors - WLS") + xlab("num_responses") + ylab("residuals")
+```
+
+A plot of the **studentized residuals** versus the predictor values when using the weighted least squares method shows how we have corrected for the megaphone shape since the studentized residuals appear to be more randomly scattered about 0.
